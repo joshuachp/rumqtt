@@ -65,11 +65,11 @@ impl NoticeTx {
         (NoticeTx(notice_tx), NoticeFuture(notice_rx))
     }
 
-    pub(crate) fn success(self) {
+    pub fn success(self) {
         _ = self.0.send(Ok(()));
     }
 
-    pub(crate) fn error(self, e: NoticeError) {
+    pub fn error(self, e: NoticeError) {
         _ = self.0.send(Err(e));
     }
 }
