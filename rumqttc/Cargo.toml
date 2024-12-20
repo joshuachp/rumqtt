@@ -1,6 +1,6 @@
 [package]
 name = "rumqttc-dev-patched"
-version = "0.24.0-devpatch+9109f87"
+version = "0.24.3-devpatch"
 publish = true
 description = "An efficient and robust mqtt client for your connected devices"
 keywords = ["mqtt", "iot", "coap", "http"]
