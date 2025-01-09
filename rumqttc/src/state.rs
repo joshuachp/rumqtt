@@ -1,4 +1,4 @@
-use crate::notice::{self, NoticeTx};
+use crate::notice::NoticeTx;
 use crate::{Event, Incoming, NoticeError, Outgoing, Request};
 
 use crate::mqttbytes::v4::*;
@@ -247,7 +247,7 @@ impl MqttState {
             .position(|(pkid, _)| *pkid == unsuback.pkid)
             .and_then(|position| self.outgoing_unsub.swap_remove_back(position));
 
-        match position {
+        match notice {
             Some((_, tx)) => {
                 tx.success();
             }
