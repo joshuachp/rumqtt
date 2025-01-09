@@ -1,4 +1,4 @@
-use crate::notice::NoticeTx;
+use crate::notice::{self, NoticeTx};
 use crate::{Event, Incoming, NoticeError, Outgoing, Request};
 
 use crate::mqttbytes::v4::*;
@@ -239,19 +239,22 @@ impl MqttState {
         &mut self,
         unsuback: &UnsubAck,
     ) -> Result<Option<Packet>, StateError> {
-        if unsuback.pkid > self.max_inflight {
-            error!("Unsolicited unsuback packet: {:?}", unsuback.pkid);
-            return Err(StateError::Unsolicited(unsuback.pkid));
-        }
         // No expecting ordered acks for unsuback
         // Search outgoing_unsub to find the right suback.pkid
-        let pos = self
+        let notice = self
             .outgoing_unsub
             .iter()
             .position(|(pkid, _)| *pkid == unsuback.pkid)
-            .ok_or(StateError::Unsolicited(unsuback.pkid))?;
-        let (_, tx) = self.outgoing_unsub.remove(pos).unwrap();
-        tx.success();
+            .and_then(|position| self.outgoing_unsub.swap_remove_back(position));
+
+        match position {
+            Some((_, tx)) => {
+                tx.success();
+            }
+            None => {
+                debug!("Unsolicited unsuback packet: {:?}", unsuback.pkid);
+            }
+        }
 
         Ok(None)
     }
@@ -420,7 +423,10 @@ impl MqttState {
                 QoS::ExactlyOnce => &mut self.outgoing_pub2,
                 _ => unreachable!(),
             };
-            if let Some(pos) = outgoing_pub.iter().position(|(publish, _)| publish.pkid == pkid) {
+            if let Some(pos) = outgoing_pub
+                .iter()
+                .position(|(publish, _)| publish.pkid == pkid)
+            {
                 outgoing_pub.get(pos);
                 info!("Collision on packet id = {:?}", publish.pkid);
                 self.collision = Some((publish, notice_tx));
