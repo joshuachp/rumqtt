@@ -1,8 +1,10 @@
 use tokio::sync::oneshot;
 
 use crate::{
-    v5::mqttbytes::v5::{SubscribeReasonCode as V5SubscribeReasonCode, UnsubAckReason,
-                        PubAckReason, PubRecReason, PubCompReason},
+    v5::mqttbytes::v5::{
+        PubAckReason, PubCompReason, PubRecReason, SubscribeReasonCode as V5SubscribeReasonCode,
+        UnsubAckReason,
+    },
     SubscribeReasonCode,
 };
 
@@ -78,11 +80,11 @@ impl NoticeTx {
         (NoticeTx(notice_tx), NoticeFuture(notice_rx))
     }
 
-    pub(crate) fn success(self) {
+    pub fn success(self) {
         _ = self.0.send(Ok(()));
     }
 
-    pub(crate) fn error(self, e: NoticeError) {
+    pub fn error(self, e: NoticeError) {
         _ = self.0.send(Err(e));
     }
 }
