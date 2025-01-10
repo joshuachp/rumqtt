@@ -90,6 +90,12 @@ impl PartialEq for Request {
 
 impl Eq for Request {}
 
+impl From<Subscribe> for Request {
+    fn from(subscribe: Subscribe) -> Self {
+        Self::Subscribe(subscribe)
+    }
+}
+
 #[cfg(feature = "websocket")]
 type RequestModifierFn = Arc<
     dyn Fn(http::Request<()>) -> Pin<Box<dyn Future<Output = http::Request<()>> + Send>>

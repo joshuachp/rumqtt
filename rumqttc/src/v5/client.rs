@@ -270,15 +270,15 @@ impl AsyncClient {
         properties: Option<SubscribeProperties>,
     ) -> Result<NoticeFuture, ClientError> {
         let filter = Filter::new(topic, qos);
-        let is_filter_valid = valid_filter(&filter.path);
         let subscribe = Subscribe::new(filter, properties);
-        let request = Request::Subscribe(subscribe);
-        if !is_filter_valid {
-            return Err(ClientError::Request(request));
+        if !subscribe_has_valid_filters(&subscribe) {
+            return Err(ClientError::Request(subscribe.into()));
         }
 
         let (notice_tx, future) = NoticeTx::new();
-        self.request_tx.send_async((notice_tx, request)).await?;
+        self.request_tx
+            .send_async((notice_tx, subscribe.into()))
+            .await?;
 
         Ok(future)
     }
@@ -308,16 +308,13 @@ impl AsyncClient {
         properties: Option<SubscribeProperties>,
     ) -> Result<NoticeFuture, ClientError> {
         let filter = Filter::new(topic, qos);
-        let is_filter_valid = valid_filter(&filter.path);
         let subscribe = Subscribe::new(filter, properties);
-        let request = Request::Subscribe(subscribe);
-        if !is_filter_valid {
-            return Err(ClientError::TryRequest(request));
+        if !subscribe_has_valid_filters(&subscribe) {
+            return Err(ClientError::TryRequest(subscribe.into()));
         }
 
         let (notice_tx, future) = NoticeTx::new();
-        self.request_tx.try_send((notice_tx, request))?;
-
+        self.request_tx.try_send((notice_tx, subscribe.into()))?;
         Ok(future)
     }
 
@@ -347,16 +344,15 @@ impl AsyncClient {
     where
         T: IntoIterator<Item = Filter>,
     {
-        let mut topics_iter = topics.into_iter();
-        let is_valid_filters = topics_iter.all(|filter| valid_filter(&filter.path));
-        let subscribe = Subscribe::new_many(topics_iter, properties);
-        let request = Request::Subscribe(subscribe);
-        if !is_valid_filters {
-            return Err(ClientError::Request(request));
+        let subscribe = Subscribe::new_many(topics, properties);
+        if !subscribe_has_valid_filters(&subscribe) {
+            return Err(ClientError::Request(subscribe.into()));
         }
 
         let (notice_tx, future) = NoticeTx::new();
-        self.request_tx.send_async((notice_tx, request)).await?;
+        self.request_tx
+            .send_async((notice_tx, subscribe.into()))
+            .await?;
 
         Ok(future)
     }
@@ -388,17 +384,13 @@ impl AsyncClient {
     where
         T: IntoIterator<Item = Filter>,
     {
-        let mut topics_iter = topics.into_iter();
-        let is_valid_filters = topics_iter.all(|filter| valid_filter(&filter.path));
-        let subscribe = Subscribe::new_many(topics_iter, properties);
-        let request = Request::Subscribe(subscribe);
-        if !is_valid_filters {
-            return Err(ClientError::TryRequest(request));
+        let subscribe = Subscribe::new_many(topics, properties);
+        if !subscribe_has_valid_filters(&subscribe) {
+            return Err(ClientError::TryRequest(subscribe.into()));
         }
 
         let (notice_tx, future) = NoticeTx::new();
-        self.request_tx.try_send((notice_tx, request))?;
-
+        self.request_tx.try_send((notice_tx, subscribe.into()))?;
         Ok(future)
     }
 
@@ -660,15 +652,15 @@ impl Client {
         properties: Option<SubscribeProperties>,
     ) -> Result<NoticeFuture, ClientError> {
         let filter = Filter::new(topic, qos);
-        let is_filter_valid = valid_filter(&filter.path);
         let subscribe = Subscribe::new(filter, properties);
-        let request = Request::Subscribe(subscribe);
-        if !is_filter_valid {
-            return Err(ClientError::Request(request));
+        if !subscribe_has_valid_filters(&subscribe) {
+            return Err(ClientError::Request(subscribe.into()));
         }
 
         let (notice_tx, future) = NoticeTx::new();
-        self.client.request_tx.try_send((notice_tx, request))?;
+        self.client
+            .request_tx
+            .try_send((notice_tx, subscribe.into()))?;
 
         Ok(future)
     }
@@ -718,16 +710,15 @@ impl Client {
     where
         T: IntoIterator<Item = Filter>,
     {
-        let mut topics_iter = topics.into_iter();
-        let is_valid_filters = topics_iter.all(|filter| valid_filter(&filter.path));
-        let subscribe = Subscribe::new_many(topics_iter, properties);
-        let request = Request::Subscribe(subscribe);
-        if !is_valid_filters {
-            return Err(ClientError::Request(request));
+        let subscribe = Subscribe::new_many(topics, properties);
+        if !subscribe_has_valid_filters(&subscribe) {
+            return Err(ClientError::Request(subscribe.into()));
         }
 
         let (notice_tx, future) = NoticeTx::new();
-        self.client.request_tx.try_send((notice_tx, request))?;
+        self.client
+            .request_tx
+            .try_send((notice_tx, subscribe.into()))?;
 
         Ok(future)
     }
@@ -824,6 +815,15 @@ impl Client {
     pub fn try_disconnect(&self) -> Result<NoticeFuture, ClientError> {
         self.client.try_disconnect()
     }
+}
+
+#[must_use]
+fn subscribe_has_valid_filters(subscribe: &Subscribe) -> bool {
+    !subscribe.filters.is_empty()
+        && subscribe
+            .filters
+            .iter()
+            .all(|filter| valid_filter(&filter.path))
 }
 
 /// Error type returned by [`Connection::recv`]
