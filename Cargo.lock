@@ -337,7 +337,7 @@ dependencies = [
  "itoa",
  "pprof",
  "pretty_env_logger",
- "rumqttc",
+ "rumqttc-dev-patched",
  "rumqttd",
  "serde",
  "serde_json",
@@ -2089,8 +2089,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "rumqttc"
-version = "0.24.0"
+name = "rumqttc-dev-patched"
+version = "0.24.6-ack-notify"
 dependencies = [
  "async-http-proxy",
  "async-tungstenite 0.28.0",
