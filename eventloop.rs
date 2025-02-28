@@ -1,5 +1,3 @@
-use crate::notice::NoticeTx;
-use crate::NoticeError;
 use crate::{framed::Network, Transport};
 use crate::{Incoming, MqttState, NetworkOptions, Packet, Request, StateError};
 use crate::{MqttOptions, Outgoing};
@@ -77,11 +75,11 @@ pub struct EventLoop {
     /// Current state of the connection
     pub state: MqttState,
     /// Request stream
-    requests_rx: Receiver<(NoticeTx, Request)>,
+    requests_rx: Receiver<Request>,
     /// Requests handle to send requests
-    pub(crate) requests_tx: Sender<(NoticeTx, Request)>,
+    pub(crate) requests_tx: Sender<Request>,
     /// Pending packets from last session
-    pub pending: VecDeque<(NoticeTx, Request)>,
+    pub pending: VecDeque<Request>,
     /// Network connection to the broker
     pub network: Option<Network>,
     /// Keep alive time
@@ -132,7 +130,15 @@ impl EventLoop {
         self.pending.extend(self.state.clean());
 
         // drain requests from channel which weren't yet received
-        let requests_in_channel = self.requests_rx.drain();
+        let mut requests_in_channel: Vec<_> = self.requests_rx.drain().collect();
+
+        requests_in_channel.retain(|request| {
+            match request {
+                Request::PubAck(_) => false, // Wait for publish retransmission, else the broker could be confused by an unexpected ack
+                _ => true,
+            }
+        });
+
         self.pending.extend(requests_in_channel);
     }
 
@@ -153,12 +159,7 @@ impl EventLoop {
             };
             // Last session might contain packets which aren't acked. If it's a new session, clear the pending packets.
             if !connack.session_present {
-                for (tx, request) in self.pending.drain(..) {
-                    // If the request is a publish request, send an error to the future that is waiting for the ack.
-                    if let Request::Publish(_) = request {
-                        tx.error(NoticeError::SessionReset)
-                    }
-                }
+                self.pending.clear();
             }
             self.network = Some(network);
 
@@ -240,8 +241,8 @@ impl EventLoop {
                 &self.requests_rx,
                 self.mqtt_options.pending_throttle
             ), if !self.pending.is_empty() || (!inflight_full && !collision) => match o {
-                Ok((tx, request)) => {
-                    if let Some(outgoing) = self.state.handle_outgoing_packet(tx, request)? {
+                Ok(request) => {
+                    if let Some(outgoing) = self.state.handle_outgoing_packet(request)? {
                         network.write(outgoing).await?;
                     }
                     match time::timeout(network_timeout, network.flush()).await {
@@ -259,8 +260,7 @@ impl EventLoop {
                 let timeout = self.keepalive_timeout.as_mut().unwrap();
                 timeout.as_mut().reset(Instant::now() + self.mqtt_options.keep_alive);
 
-                let (tx, _) = NoticeTx::new();
-                if let Some(outgoing) = self.state.handle_outgoing_packet(tx, Request::PingReq(PingReq))? {
+                if let Some(outgoing) = self.state.handle_outgoing_packet(Request::PingReq(PingReq))? {
                     network.write(outgoing).await?;
                 }
                 match time::timeout(network_timeout, network.flush()).await {
@@ -282,10 +282,10 @@ impl EventLoop {
     }
 
     async fn next_request(
-        pending: &mut VecDeque<(NoticeTx, Request)>,
-        rx: &Receiver<(NoticeTx, Request)>,
+        pending: &mut VecDeque<Request>,
+        rx: &Receiver<Request>,
         pending_throttle: Duration,
-    ) -> Result<(NoticeTx, Request), ConnectionError> {
+    ) -> Result<Request, ConnectionError> {
         if !pending.is_empty() {
             time::sleep(pending_throttle).await;
             // We must call .pop_front() AFTER sleep() otherwise we would have
@@ -331,7 +331,7 @@ pub(crate) async fn socket_connect(
             SocketAddr::V6(_) => TcpSocket::new_v6()?,
         };
 
-        socket.set_nodelay(true)?;
+        socket.set_nodelay(network_options.tcp_nodelay)?;
 
         if let Some(send_buff_size) = network_options.tcp_send_buffer_size {
             socket.set_send_buffer_size(send_buff_size).unwrap();
@@ -486,18 +486,15 @@ async fn mqtt_connect(
     options: &MqttOptions,
     network: &mut Network,
 ) -> Result<ConnAck, ConnectionError> {
-    let keep_alive = options.keep_alive().as_secs() as u16;
-    let clean_session = options.clean_session();
-    let last_will = options.last_will();
-
     let mut connect = Connect::new(options.client_id());
-    connect.keep_alive = keep_alive;
-    connect.clean_session = clean_session;
-    connect.last_will = last_will;
+    connect.keep_alive = options.keep_alive().as_secs() as u16;
+    connect.clean_session = options.clean_session();
+    connect.last_will = options.last_will();
     connect.login = options.credentials();
 
     // send mqtt connect packet
-    network.connect(connect).await?;
+    network.write(Packet::Connect(connect)).await?;
+    network.flush().await?;
 
     // validate connack
     match network.read().await? {
