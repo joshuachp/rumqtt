@@ -112,7 +112,6 @@ impl MqttState {
         }
     }
 
-    /// Returns inflight outgoing packets and clears internal queues
     pub fn clean(&mut self) -> Vec<Request> {
         let mut pending = Vec::with_capacity(100);
         let (first_half, second_half) = self
@@ -120,8 +119,11 @@ impl MqttState {
             .split_at_mut(self.last_puback as usize + 1);
 
         for publish in second_half.iter_mut().chain(first_half) {
-            if let Some(publish) = publish.take() {
-                let resolver = self.pub_ack_waiter.remove(&publish.pkid).unwrap();
+            let publish_resolver = publish
+                .take()
+                .and_then(|p| self.pub_ack_waiter.remove(&p.pkid).map(|r| (p, r)));
+
+            if let Some((publish, resolver)) = publish_resolver {
                 let request = Request::Publish(publish, resolver);
                 pending.push(request);
             }
@@ -130,9 +132,11 @@ impl MqttState {
         // remove and collect pending releases
         for pkid in self.outgoing_rel.ones() {
             let pkid = pkid as u16;
-            let resolver = self.pub_ack_waiter.remove(&pkid).unwrap();
-            let request = Request::PubRel(PubRel::new(pkid), resolver);
-            pending.push(request);
+
+            if let Some(resolver) = self.pub_ack_waiter.remove(&pkid) {
+                let request = Request::PubRel(PubRel::new(pkid), resolver);
+                pending.push(request);
+            }
         }
 
         // we don't retransmit subscribe and unsubscribe packet
