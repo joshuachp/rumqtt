@@ -2090,7 +2090,7 @@ dependencies = [
 
 [[package]]
 name = "rumqttc-dev-patched"
-version = "0.24.6-ack-notify"
+version = "0.24.7-ack-notify"
 dependencies = [
  "async-http-proxy",
  "async-tungstenite 0.28.0",
