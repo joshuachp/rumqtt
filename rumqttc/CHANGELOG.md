@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Remove v5 PubAck/PubRec/PubRel/PubComp/Sub/Unsub failures from `StateError` and log warnings on these failures.
 * Remove `.unwrap` from MqttState `.clean` function
 * Handle unsolicited silently by avoiding cleaning the state
+* Mark publishes resent in `MqttState.clean` as `dup = true`
 
 ### Security
 
