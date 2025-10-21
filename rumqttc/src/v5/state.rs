@@ -167,7 +167,8 @@ impl MqttState {
                 .take()
                 .and_then(|p| self.pub_ack_waiter.remove(&p.pkid).map(|r| (p, r)));
 
-            if let Some((publish, resolver)) = publish_resolver {
+            if let Some((mut publish, resolver)) = publish_resolver {
+                publish.dup = true;
                 let request = Request::Publish(publish, resolver);
                 pending.push(request);
             }
@@ -178,7 +179,7 @@ impl MqttState {
             let pkid = pkid as u16;
 
             if let Some(resolver) = self.pub_ack_waiter.remove(&pkid) {
-                let request = Request::PubRel(PubRel::new(pkid as u16, None), resolver);
+                let request = Request::PubRel(PubRel::new(pkid, None), resolver);
                 pending.push(request);
             }
         }
