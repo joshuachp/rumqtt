@@ -165,7 +165,7 @@ impl EventLoop {
 
         match self.select().await {
             Ok(v) => Ok(v),
-            Err(e @ ConnectionError::MqttState(StateError::Unsolicited(_p))) => {
+            Err(e @ ConnectionError::MqttState(StateError::Unsolicited(_))) => {
                 // an unsolicited packet won't be acked but we won't clean the state
                 Err(e)
             }
