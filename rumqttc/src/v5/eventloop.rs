@@ -165,10 +165,6 @@ impl EventLoop {
 
         match self.select().await {
             Ok(v) => Ok(v),
-            Err(e @ ConnectionError::MqttState(StateError::Unsolicited(_))) => {
-                // an unsolicited packet won't be acked but we won't clean the state
-                Err(e)
-            }
             Err(e) => {
                 // MQTT requires that packets pending acknowledgement should be republished on session resume.
                 // Move pending messages from state to eventloop.
