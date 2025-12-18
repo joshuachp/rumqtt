@@ -1,6 +1,6 @@
 use tokio::task::{self, JoinSet};
 
-use rumqttc::{AsyncClient, MqttOptions, QoS};
+use rumqttc_dev_patched::{AsyncClient, MqttOptions, QoS};
 use std::error::Error;
 use std::time::Duration;
 

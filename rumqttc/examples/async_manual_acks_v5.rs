@@ -1,8 +1,8 @@
-use rumqttc::v5::mqttbytes::v5::Packet;
-use rumqttc::v5::mqttbytes::QoS;
+use rumqttc_dev_patched::v5::mqttbytes::v5::Packet;
+use rumqttc_dev_patched::v5::mqttbytes::QoS;
 use tokio::{task, time};
 
-use rumqttc::v5::{AsyncClient, Event, EventLoop, MqttOptions};
+use rumqttc_dev_patched::v5::{AsyncClient, Event, EventLoop, MqttOptions};
 use std::error::Error;
 use std::time::Duration;
 
@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     task::spawn(async move {
         // send some messages to example topic and disconnect
         requests(&client).await;
-        client.disconnect().await.unwrap()
+        client.disconnect().await.unwrap().await
     });
 
     // get subscribed messages without acking

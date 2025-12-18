@@ -1,5 +1,5 @@
 use bincode::ErrorKind;
-use rumqttc::{Client, Event, Incoming, MqttOptions, QoS};
+use rumqttc_dev_patched::{Client, Event, Incoming, MqttOptions, QoS};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::thread;

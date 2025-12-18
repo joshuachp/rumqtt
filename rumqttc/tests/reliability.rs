@@ -8,7 +8,7 @@ use tokio::{
 mod broker;
 
 use broker::*;
-use rumqttc::*;
+use rumqttc_dev_patched::*;
 
 async fn start_requests(count: u8, qos: QoS, delay: u64, client: AsyncClient) {
     for i in 1..=count {
@@ -376,7 +376,9 @@ async fn packet_id_collisions_are_detected_and_flow_control_is_applied() {
     // Poll until there is collision.
     loop {
         match eventloop.poll().await.unwrap() {
-            rumqttc::Event::Outgoing(rumqttc::Outgoing::AwaitAck(1)) => break,
+            rumqttc_dev_patched::Event::Outgoing(rumqttc_dev_patched::Outgoing::AwaitAck(1)) => {
+                break
+            }
             v => {
                 println!("Poll = {v:?}");
                 continue;
@@ -390,7 +392,7 @@ async fn packet_id_collisions_are_detected_and_flow_control_is_applied() {
         println!("Poll = {event:?}");
 
         match event {
-            rumqttc::Event::Outgoing(rumqttc::Outgoing::Publish(ack)) => {
+            rumqttc_dev_patched::Event::Outgoing(rumqttc_dev_patched::Outgoing::Publish(ack)) => {
                 if ack == 1 {
                     let elapsed = start.elapsed().as_millis() as i64;
                     let deviation_millis: i64 = (5000 - elapsed).abs();
@@ -466,7 +468,7 @@ async fn next_poll_after_connect_failure_reconnects() {
     }
 
     match eventloop.poll().await {
-        Ok(rumqttc::Event::Incoming(Packet::ConnAck(ConnAck {
+        Ok(rumqttc_dev_patched::Event::Incoming(Packet::ConnAck(ConnAck {
             code: ConnectReturnCode::Success,
             session_present: false,
         }))) => (),

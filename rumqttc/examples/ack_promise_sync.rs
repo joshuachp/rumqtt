@@ -1,5 +1,5 @@
 use flume::bounded;
-use rumqttc::{Client, MqttOptions, QoS, TokenError};
+use rumqttc_dev_patched::{Client, MqttOptions, QoS, TokenError};
 use std::error::Error;
 use std::thread::{self, sleep};
 use std::time::Duration;
